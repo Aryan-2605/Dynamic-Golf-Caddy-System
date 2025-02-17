@@ -7,7 +7,6 @@ const LoginScreen = ({ navigation }) => {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    // ✅ Updated Username Validation: Only numbers, length 4-10
     const isValidUsername = (username) => {
         return /^[0-9]{4,10}$/.test(username);
     };
@@ -41,8 +40,8 @@ const LoginScreen = ({ navigation }) => {
           }
   
           setError("");
-          console.log("Login Successful:", data);
-          navigation.navigate("Home");
+          console.log("Login Successful:", data.player_id);
+          navigation.navigate("Home", { player_id: data.player_id });
   
       } catch (error) {
           console.log("Fetch Error:", error);
@@ -91,6 +90,7 @@ const LoginScreen = ({ navigation }) => {
                 </Card>
             </View>
         </ImageBackground>
+        
     );
 };
 

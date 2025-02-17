@@ -2,14 +2,19 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, Dimensions, Image, ImageBackground, Pressable } from "react-native";
 import { Card } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
+
 
 const { width, height } = Dimensions.get("window");
 
-//const navigation = useNavigation();
 
 
 const HomeScreen = () => {
     const navigation = useNavigation();
+    const route = useRoute();  // Get route params
+    const player_id = route.params?.player_id; // Extract player_id
+
+    console.log("Player ID in HomeScreen:", player_id); 
     const images = [
         "https://cdn1.thegolfinggazette.com/uploads/77/2024/09/GettyImages-2164268739-1140x815.jpg",
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFFgVUReIiSpRO1jEHaZG6Q03wXi8hlXjpqg&s",
@@ -17,7 +22,7 @@ const HomeScreen = () => {
         "https://e0.365dm.com/24/04/736x414/skysports-rory-mcilroy-golf_6514390.jpg?20240408091228",
     ];
 
-    const gridItems = ["Box 1", "Box 2", "Box 3", "Box 4"];
+    const gridItems = ["Bag Selector", "Box 2", "Box 3", "Box 4"];
 
     const [currentIndex, setCurrentIndex] = useState(0);
     const flatListRef = React.useRef(null);
@@ -37,6 +42,11 @@ const HomeScreen = () => {
 
     const handlePress = (title) => {
         console.log(`${title} tapped`);
+        if (title === 'Bag Selector') {
+          console.log('Hello')
+          console.log(player_id)
+          navigation.navigate("Bag", { player_id });        }
+
     };
 
     return (
@@ -52,7 +62,12 @@ const HomeScreen = () => {
                     console.log("Logout Pressed");
                     navigation.navigate("Login"); // Change "Login" to your target screen
                 }} 
-                style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}
+                style={({ pressed }) => [
+                  styles.logoutButton,
+
+                  { opacity: pressed ? 0.5 : 1 }]
+              
+              }
                 >
                   <Text style={styles.logout}>Logout</Text>
               </Pressable>    
@@ -177,14 +192,22 @@ const styles = StyleSheet.create({
     },
     logout:{
       position: "flex",
-      right: -225,
-      top: 60,
+      right: -215,
+      top: 50,
       fontSize: 24,
       fontWeight: "bold",
       justifyContent: "space-between",
 
       color: "white",
     },
+
+    logoutButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      //backgroundColor: "rgba(233, 12, 12, 0.2)", // Optional: to visualize touch area
+      borderRadius: 8,
+      //alignItems: "center",
+  },
 });
 
 export default HomeScreen;
