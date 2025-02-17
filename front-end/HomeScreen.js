@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, Dimensions, Image, ImageBackground, Pressable } from "react-native";
 import { Card } from "react-native-paper";
+import { useNavigation } from "@react-navigation/native";
 
 const { width, height } = Dimensions.get("window");
 
+//const navigation = useNavigation();
+
+
 const HomeScreen = () => {
+    const navigation = useNavigation();
     const images = [
         "https://cdn1.thegolfinggazette.com/uploads/77/2024/09/GettyImages-2164268739-1140x815.jpg",
-        "https://wp.usatodaysports.com/wp-content/uploads/sites/87/2020/02/gettyimages-85836947.jpg",
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFFgVUReIiSpRO1jEHaZG6Q03wXi8hlXjpqg&s",
         "https://tigerwoods.com/wp-content/uploads/2016/11/TigerWoods_Biography_Trophy.jpg",
         "https://e0.365dm.com/24/04/736x414/skysports-rory-mcilroy-golf_6514390.jpg?20240408091228",
-        
     ];
 
     const gridItems = ["Box 1", "Box 2", "Box 3", "Box 4"];
@@ -20,6 +23,7 @@ const HomeScreen = () => {
     const flatListRef = React.useRef(null);
 
     useEffect(() => {
+      
         const interval = setInterval(() => {
             setCurrentIndex((prevIndex) => {
                 const nextIndex = (prevIndex + 1) % images.length;
@@ -41,7 +45,18 @@ const HomeScreen = () => {
             style={styles.backgroundImage}
         >
             <View style={styles.container}>
+              <View style = {styles.headerContainer}>
                 <Text style={styles.headerText}>DGCS</Text>
+                <Pressable 
+                onPress={() => {
+                    console.log("Logout Pressed");
+                    navigation.navigate("Login"); // Change "Login" to your target screen
+                }} 
+                style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}
+                >
+                  <Text style={styles.logout}>Logout</Text>
+              </Pressable>    
+              </View>
 
                 <View style={styles.imageContainer}>
                     <FlatList
@@ -91,13 +106,23 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "rgba(0, 0, 0, 0.3)",
+        //flexDirection: "row",
+        //justifyContent: "space-between",
+       // alignItems: "center",
+    },
+    headerContainer:{
+       flexDirection: "row",
+       //justifyContent: "space-between",
+       //alignItems: "center",
     },
     headerText: {
-        position: "flex",
+        //position: "flex",
         top: 60,
         left: 20,
         fontSize: 24,
         fontWeight: "bold",
+        justifyContent: "space-between",
+        flexDirection: "row",
         color: "white",
     },
     imageContainer: {
@@ -149,6 +174,16 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: "bold",
         color: "white",
+    },
+    logout:{
+      position: "flex",
+      right: -225,
+      top: 60,
+      fontSize: 24,
+      fontWeight: "bold",
+      justifyContent: "space-between",
+
+      color: "white",
     },
 });
 

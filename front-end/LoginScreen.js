@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontSize: 24,
         fontWeight: "bold",
-        color: "green", // ✅ Login title is green
+        color: "green", 
     },
     container: {
         flex: 1,
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     },
     input: {
         marginBottom: 15,
-        color: "green", // ✅ Text inside input is green
+        color: "green", 
     },
     button: {
         marginTop: 10,
