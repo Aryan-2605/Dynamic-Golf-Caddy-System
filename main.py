@@ -2,11 +2,13 @@ import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+
+
 #Run this in console before running SQL commands
 #  uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+#  uvicorn main:app --host 192.168.97.22 --port 8000 --reload
 
 app = FastAPI()
-
 
 
 
