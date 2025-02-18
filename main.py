@@ -1,157 +1,150 @@
 import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Optional
+from bag_routes import router as bag_router
+from get_bag import router as get_bag_router
 
-
-
-#Run this in console before running SQL commands
-#  uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-#  uvicorn main:app --host 192.168.97.22 --port 8000 --reload
+# Do this command before doing any SQL stuff
+#   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+#   uvicorn main:app --host 192.168.97.22 --port 8000 --reload
 
 app = FastAPI()
 
+# ------------------------------------------------------
+#                 Connect to Database
+# ------------------------------------------------------
+conn = sqlite3.connect("DGCS.db", check_same_thread=False)
+
+# ------------------------------------------------------
+#              Ensure "users" Table Exists
+# ------------------------------------------------------
+with conn:
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            player_id TEXT PRIMARY KEY,
+            password TEXT NOT NULL
+        )
+    """)
+
+# ------------------------------------------------------
+#           Check "player_data" Table Exists
+# ------------------------------------------------------
+with conn:
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS player_data (
+            player_id TEXT PRIMARY KEY,
+            Age INTEGER,
+            Gender TEXT CHECK(Gender IN ('Male', 'Female')),
+            HCP REAL,
+            FOREIGN KEY (player_id) REFERENCES users(player_id)
+        )
+    """)
 
 
-conn = sqlite3.connect("users.db", check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        player_id TEXT PRIMARY KEY,
-        password TEXT NOT NULL
-    )
-""")
-conn.commit()
-
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS player_data (
-        player_id TEXT PRIMARY KEY,
-        Age INTEGER,
-        Gender TEXT,
-        HCP REAL,
-        Driver TEXT DEFAULT 'NaN', Driver_Dispersion TEXT DEFAULT 'NaN',
-        "3-Wood" TEXT DEFAULT 'NaN', "3-Wood_Dispersion" TEXT DEFAULT 'NaN',
-        "5-Wood" TEXT DEFAULT 'NaN', "5-Wood_Dispersion" TEXT DEFAULT 'NaN',
-        "3-Hybrid" TEXT DEFAULT 'NaN', "3-Hybrid_Dispersion" TEXT DEFAULT 'NaN',
-        "4-Hybrid" TEXT DEFAULT 'NaN', "4-Hybrid_Dispersion" TEXT DEFAULT 'NaN',
-        "5-Hybrid" TEXT DEFAULT 'NaN', "5-Hybrid_Dispersion" TEXT DEFAULT 'NaN',
-        "4-Iron" TEXT DEFAULT 'NaN', "4-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "5-Iron" TEXT DEFAULT 'NaN', "5-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "6-Iron" TEXT DEFAULT 'NaN', "6-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "7-Iron" TEXT DEFAULT 'NaN', "7-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "8-Iron" TEXT DEFAULT 'NaN', "8-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "9-Iron" TEXT DEFAULT 'NaN', "9-Iron_Dispersion" TEXT DEFAULT 'NaN',
-        "PW" TEXT DEFAULT 'NaN', "PW_Dispersion" TEXT DEFAULT 'NaN',
-        "GW" TEXT DEFAULT 'NaN', "GW_Dispersion" TEXT DEFAULT 'NaN',
-        "SW" TEXT DEFAULT 'NaN', "SW_Dispersion" TEXT DEFAULT 'NaN',
-        "LW" TEXT DEFAULT 'NaN', "LW_Dispersion" TEXT DEFAULT 'NaN',
-        FOREIGN KEY (player_id) REFERENCES users(player_id)
-    )
-""")
-conn.commit()
+# ------------------------------------------------------
+#    Checks "users" exist
+# ------------------------------------------------------
+def add_manual_users():
+    with conn:
+        c = conn.cursor()
+        users = [
+            ("2001", "1234"),
+            ("2002", "1234"),
+            ("2003", "1234")
+        ]
+        c.executemany("INSERT OR IGNORE INTO users VALUES (?, ?)", users)
 
 
+add_manual_users()  # Insert if not exists
+
+
+# ------------------------------------------------------
+#                 Data Models
+# ------------------------------------------------------
 class User(BaseModel):
     player_id: str
     password: str
 
-class GolfBag(BaseModel):
+
+class Profile(BaseModel):
     player_id: str
     Age: int
     Gender: str
     HCP: float
-    clubs: Dict[str, Optional[str]]
 
 
-def add_manual_users():
-    users = [("2001", "1234"), ("2002", "1234"), ("2003", "1234")]
-    cursor.executemany("INSERT OR IGNORE INTO users VALUES (?, ?)", users)
-    conn.commit()
-
-
-add_manual_users()
-
-
+# ------------------------------------------------------
+#                  LOGIN ENDPOINT
+# ------------------------------------------------------
 @app.post("/login")
 def login(user: User):
-    cursor.execute("SELECT password FROM users WHERE player_id=?", (user.player_id,))
-    result = cursor.fetchone()
+    c = conn.cursor()
+    try:
+        c.execute("SELECT password FROM users WHERE player_id=?", (user.player_id,))
+        result = c.fetchone()
+    finally:
+        c.close()
 
     if not result or result[0] != user.password:
         raise HTTPException(status_code=400, detail="Invalid username or password")
 
-    return {
-        "message": "Login successful",
-        "player_id": user.player_id  # Include player_id in response
-    }
+    return {"message": "Login successful", "player_id": user.player_id}
 
-@app.post("/save_golf_bag")
-def save_golf_bag(data: GolfBag):
-    cursor.execute("SELECT * FROM player_data WHERE player_id=?", (data.player_id,))
-    existing_data = cursor.fetchone()
 
-    # Ensure all clubs and dispersion values have a default "NaN"
-    club_data = {club: data.clubs.get(club, "NaN") for club in [
-        "Driver", "3-Wood", "5-Wood", "3-Hybrid", "4-Hybrid", "5-Hybrid",
-        "4-Iron", "5-Iron", "6-Iron", "7-Iron", "8-Iron", "9-Iron",
-        "PW", "GW", "SW", "LW"
-    ]}
+# ------------------------------------------------------
+#               SAVE PROFILE ENDPOINT
+# ------------------------------------------------------
+@app.post("/save_profile")
+def save_profile(data: Profile):
+    c = conn.cursor()
+    try:
+        c.execute("SELECT * FROM player_data WHERE player_id=?", (data.player_id,))
+        existing_data = c.fetchone()
 
-    dispersion_data = {f"{club}_Dispersion": data.clubs.get(f"{club}_Dispersion", "NaN") for club in club_data}
+        if existing_data:
+            c.execute("""
+                UPDATE player_data
+                SET Age=?, Gender=?, HCP=?
+                WHERE player_id=?
+            """, (data.Age, data.Gender, data.HCP, data.player_id))
+        else:
+            c.execute("""
+                INSERT INTO player_data (player_id, Age, Gender, HCP)
+                VALUES (?, ?, ?, ?)
+            """, (data.player_id, data.Age, data.Gender, data.HCP))
 
-    # Combine values
-    values = (
-        data.player_id, data.Age, data.Gender, data.HCP,
-        *club_data.values(), *dispersion_data.values()
-    )
+        conn.commit()
+    finally:
+        c.close()
 
-    # Ensure values length matches the columns count (36)
-    while len(values) < 36:
-        values += ("NaN",)
+    return {"message": "Profile saved successfully"}
 
-    if existing_data:
-        cursor.execute("""
-            UPDATE player_data SET Age=?, Gender=?, HCP=?, 
-            Driver=?, Driver_Dispersion=?, "3-Wood"=?, "3-Wood_Dispersion"=?, 
-            "5-Wood"=?, "5-Wood_Dispersion"=?, "3-Hybrid"=?, "3-Hybrid_Dispersion"=?, 
-            "4-Hybrid"=?, "4-Hybrid_Dispersion"=?, "5-Hybrid"=?, "5-Hybrid_Dispersion"=?,
-            "4-Iron"=?, "4-Iron_Dispersion"=?, "5-Iron"=?, "5-Iron_Dispersion"=?,
-            "6-Iron"=?, "6-Iron_Dispersion"=?, "7-Iron"=?, "7-Iron_Dispersion"=?,
-            "8-Iron"=?, "8-Iron_Dispersion"=?, "9-Iron"=?, "9-Iron_Dispersion"=?,
-            "PW"=?, "PW_Dispersion"=?, "GW"=?, "GW_Dispersion"=?, 
-            "SW"=?, "SW_Dispersion"=?, "LW"=?, "LW_Dispersion"=?
-            WHERE player_id=?
-        """, (*values, data.player_id))
-    else:
-        cursor.execute("""
-            INSERT INTO player_data (player_id, Age, Gender, HCP, 
-            Driver, Driver_Dispersion, "3-Wood", "3-Wood_Dispersion", 
-            "5-Wood", "5-Wood_Dispersion", "3-Hybrid", "3-Hybrid_Dispersion",
-            "4-Hybrid", "4-Hybrid_Dispersion", "5-Hybrid", "5-Hybrid_Dispersion",
-            "4-Iron", "4-Iron_Dispersion", "5-Iron", "5-Iron_Dispersion",
-            "6-Iron", "6-Iron_Dispersion", "7-Iron", "7-Iron_Dispersion",
-            "8-Iron", "8-Iron_Dispersion", "9-Iron", "9-Iron_Dispersion",
-            "PW", "PW_Dispersion", "GW", "GW_Dispersion", 
-            "SW", "SW_Dispersion", "LW", "LW_Dispersion") 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """, values)
 
-    conn.commit()
-    return {"message": "Golf Bag Saved Successfully"}
-
+# ------------------------------------------------------
+#             GET PROFILE CHECK IF PROFILE IS FILLED
+# ------------------------------------------------------
 
 @app.get("/get_golf_bag/{player_id}")
 def get_golf_bag(player_id: str):
-    cursor.execute("SELECT * FROM player_data WHERE player_id=?", (player_id,))
-    data = cursor.fetchone()
+    c.execute("SELECT * FROM player_data WHERE player_id=?", (player_id,))
+    data = c.fetchone()
 
     if not data:
         raise HTTPException(status_code=404, detail="Player data not found")
 
-    columns = [desc[0] for desc in cursor.description]
+    columns = [desc[0] for desc in c.description]
     result = dict(zip(columns, data))
     return result
 
+# ------------------------------------------------------
+#             Bag Addition and Selection. (GET)
+# ------------------------------------------------------
+
+
+app.include_router(get_bag_router)
+
+app.include_router(bag_router)
 
 
