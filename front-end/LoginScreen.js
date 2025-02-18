@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text, ImageBackground } from "react-native";
 import { TextInput, Button, Card } from "react-native-paper";
+import CONFIG from "./config";
 
 const LoginScreen = ({ navigation }) => {
     const [username, setUsername] = useState("");
@@ -24,7 +25,7 @@ const LoginScreen = ({ navigation }) => {
       console.log("Logging in with:", username, password);
   
       try {
-          const response = await fetch("http://192.168.97.22:8000/login", {
+          const response = await fetch(`${CONFIG.API_BASE_URL}/login`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ player_id: username, password }),

@@ -1,212 +1,293 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Dimensions, Image, ImageBackground, Pressable } from "react-native";
-import { Card } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
-import { useRoute } from "@react-navigation/native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Pressable,
+  Alert,
+} from "react-native";
+import {
+  Card,
+  TextInput,
+  Button,
+  Dialog,
+  Portal,
+  Provider,
+} from "react-native-paper";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import CONFIG from "./config";
+import { LogBox } from "react-native";
+
 
 
 const { width, height } = Dimensions.get("window");
 
-
-
 const HomeScreen = () => {
-    const navigation = useNavigation();
-    const route = useRoute();  // Get route params
-    const player_id = route.params?.player_id; // Extract player_id
+  const navigation = useNavigation();
+  const route = useRoute();
+  const player_id = route.params?.player_id;
 
-    console.log("Player ID in HomeScreen:", player_id); 
-    const images = [
-        "https://cdn1.thegolfinggazette.com/uploads/77/2024/09/GettyImages-2164268739-1140x815.jpg",
-        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFFgVUReIiSpRO1jEHaZG6Q03wXi8hlXjpqg&s",
-        "https://tigerwoods.com/wp-content/uploads/2016/11/TigerWoods_Biography_Trophy.jpg",
-        "https://e0.365dm.com/24/04/736x414/skysports-rory-mcilroy-golf_6514390.jpg?20240408091228",
-    ];
+  const [isDialogVisible, setDialogVisible] = useState(false);
+  const [profile, setProfile] = useState({ age: "", gender: "", hcp: "" });
 
-    const gridItems = ["Bag Selector", "Box 2", "Box 3", "Box 4"];
+  // 1️⃣ Fetch Player Data Safely
+  useEffect(() => {
+    if (!player_id) return;
 
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const flatListRef = React.useRef(null);
+    (async () => {
+      try {
+        // Attempt to get an existing profile from the backend
+        const res = await fetch(
+          `${CONFIG.API_BASE_URL}/get_golf_bag/${player_id}`
+        );
 
-    useEffect(() => {
-      
-        const interval = setInterval(() => {
-            setCurrentIndex((prevIndex) => {
-                const nextIndex = (prevIndex + 1) % images.length;
-                flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-                return nextIndex;
-            });
-        }, 8000); 
+        // If not OK (like 404), we show the profile dialog
+        if (!res.ok) {
+          // Example: 404 "Not Found" => show dialog
+          throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
+        }
 
-        return () => clearInterval(interval);
-    }, []);
+        const data = await res.json();
+        // If data is missing profile fields, open dialog
+        if (!data || !data.Age || !data.Gender || !data.HCP) {
+          setDialogVisible(true);
+        } else {
+          setProfile({
+            age: data.Age.toString(),
+            gender: data.Gender,
+            hcp: data.HCP.toString(),
+          });
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
 
-    const handlePress = (title) => {
-        console.log(`${title} tapped`);
-        if (title === 'Bag Selector') {
-          console.log('Hello')
-          console.log(player_id)
-          navigation.navigate("Bag", { player_id });        }
+        // If the endpoint returned a 404 or 500, it means no data for the user
+        // or the server is having issues => show the dialog anyway
+        setDialogVisible(true);
+      }
+    })();
+  }, [player_id]);
 
-    };
+  // 2️⃣ Save Profile to Backend
+  const handleSaveProfile = async () => {
+    try {
+      const response = await fetch(`${CONFIG.API_BASE_URL}/save_profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          player_id,
+          Age: profile.age,
+          Gender: profile.gender,
+          HCP: profile.hcp,
+        }),
+      });
 
-    return (
-        <ImageBackground 
-            source={{ uri: "https://i.pinimg.com/736x/32/1c/1c/321c1c23d7c6119e33a1f815cde6fdac.jpg" }} 
-            style={styles.backgroundImage}
-        >
-            <View style={styles.container}>
-              <View style = {styles.headerContainer}>
-                <Text style={styles.headerText}>DGCS</Text>
-                <Pressable 
-                onPress={() => {
-                    console.log("Logout Pressed");
-                    navigation.navigate("Login"); // Change "Login" to your target screen
-                }} 
-                style={({ pressed }) => [
-                  styles.logoutButton,
+      if (!response.ok) {
+        throw new Error(`Failed to save profile. Status: ${response.status}`);
+      }
 
-                  { opacity: pressed ? 0.5 : 1 }]
-              
-              }
-                >
-                  <Text style={styles.logout}>Logout</Text>
-              </Pressable>    
-              </View>
+      setDialogVisible(false);
+      Alert.alert("Success", "Profile saved successfully!");
+    } catch (error) {
+      console.error("Save error:", error);
+      Alert.alert("Error", "Failed to save profile.");
+    }
+  };
 
-                <View style={styles.imageContainer}>
-                    <FlatList
-                        ref={flatListRef}
-                        data={images}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item, index) => index.toString()}
-                        renderItem={({ item }) => (
-                            <View style={styles.slide}>
-                                <Image source={{ uri: item }} style={styles.image} />
-                            </View>
-                        )}
-                    />
+  // 3️⃣ Handle Grid Press
+  const handlePress = (title) => {
+    if (title === "Bag Selector") {
+      navigation.navigate("Bag", { player_id });
+    }
+  };
+
+  return (
+    <Provider>
+        
+      <ImageBackground
+        source={{
+          uri: "https://i.pinimg.com/736x/32/1c/1c/321c1c23d7c6119e33a1f815cde6fdac.jpg",
+        }}
+        style={styles.backgroundImage}
+      >
+        <View style={styles.container}>
+          {/* Header & Logout */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.headerText}>DGCS</Text>
+            <Pressable
+              onPress={() => navigation.navigate("Login")}
+              style={styles.logoutButton}
+            >
+              <Text style={styles.logoutText}>Logout</Text>
+            </Pressable>
+          </View>
+
+          {/* Image Slideshow */}
+          <View style={styles.imageContainer}>
+            <FlatList
+              data={[
+                "https://cdn1.thegolfinggazette.com/uploads/77/2024/09/GettyImages-2164268739-1140x815.jpg",
+                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFFgVUReIiSpRO1jEHaZG6Q03wXi8hlXjpqg&s",
+                "https://tigerwoods.com/wp-content/uploads/2016/11/TigerWoods_Biography_Trophy.jpg",
+                "https://e0.365dm.com/24/04/736x414/skysports-rory-mcilroy-golf_6514390.jpg?20240408091228",
+              ]}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.slide}>
+                  <Image source={{ uri: item }} style={styles.image} />
                 </View>
+              )}
+            />
+          </View>
 
-                <View style={styles.gridContainer}>
-                    {gridItems.map((title, index) => (
-                        <Pressable 
-                            key={index} 
-                            onPress={() => handlePress(title)} 
-                            style={({ pressed }) => [
-                                styles.gridItem, 
-                                index < 2 ? { marginBottom: 20 } : null,
-                                { opacity: pressed ? 0.7 : 1 }
-                            ]}
-                        >
-                            <Card style={styles.cardStyle}>
-                                <Card.Content>
-                                    <Text style={styles.gridText}>{title}</Text>
-                                </Card.Content>
-                            </Card>
-                        </Pressable>
-                    ))}
-                </View>
-            </View>
-        </ImageBackground>
-    );
+          {/* Grid Menu */}
+          <View style={styles.gridContainer}>
+            {["Bag Selector", "Box 2", "Box 3", "Box 4"].map((title, index) => (
+              <Pressable
+                key={index}
+                onPress={() => handlePress(title)}
+                style={styles.gridItem}
+              >
+                <Card style={styles.cardStyle}>
+                  <Card.Content>
+                    <Text style={styles.gridText}>{title}</Text>
+                  </Card.Content>
+                </Card>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Profile Input Dialog */}
+        <Portal>
+          <Dialog visible={isDialogVisible} dismissable={false}>
+            <Dialog.Title>Complete Your Profile</Dialog.Title>
+            <Dialog.Content>
+              <TextInput
+                label="Age"
+                keyboardType="numeric"
+                value={profile.age}
+                onChangeText={(value) => setProfile({ ...profile, age: value })}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="Gender (Male/Female)"
+                value={profile.gender}
+                onChangeText={(value) =>
+                  setProfile({ ...profile, gender: value })
+                }
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="HCP"
+                keyboardType="numeric"
+                value={profile.hcp}
+                onChangeText={(value) => setProfile({ ...profile, hcp: value })}
+                mode="outlined"
+                style={styles.input}
+              />
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={handleSaveProfile}>Save</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+      </ImageBackground>
+    </Provider>
+  );
 };
 
 const styles = StyleSheet.create({
-    backgroundImage: {
-        flex: 1,
-        resizeMode: "cover",
-    },
-    container: {
-        flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.3)",
-        //flexDirection: "row",
-        //justifyContent: "space-between",
-       // alignItems: "center",
-    },
-    headerContainer:{
-       flexDirection: "row",
-       //justifyContent: "space-between",
-       //alignItems: "center",
-    },
-    headerText: {
-        //position: "flex",
-        top: 60,
-        left: 20,
-        fontSize: 24,
-        fontWeight: "bold",
-        justifyContent: "space-between",
-        flexDirection: "row",
-        color: "white",
-    },
-    imageContainer: {
-        height: height / 3,
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 40,
-    },
-    slide: {
-        width: width,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    image: {
-        width: width * 0.9,
-        height: height / 4,
-        borderRadius: 10,
-        marginVertical: 10,
-    },
-    gridContainer: {
-        flex: 2,
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "space-evenly",
-        alignItems: "center",
-        padding: 10,
-    },
-    gridItem: {
-        width: width * 0.4,
-        height: 120,
-        justifyContent: "center",
-        alignItems: "center",
-        margin: 5,
-        borderRadius: 10,
-        backgroundColor: "rgba(39, 34, 34, 0.3)",
-        borderWidth: 1,
-        borderColor: "rgba(255, 255, 255, 0.5)",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-    },
-    cardStyle: {
-        backgroundColor: "transparent", 
-        elevation: 0, 
-    },
-    gridText: {
-        textAlign: "center",
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "white",
-    },
-    logout:{
-      position: "flex",
-      right: -215,
-      top: 50,
-      fontSize: 24,
-      fontWeight: "bold",
-      justifyContent: "space-between",
-
-      color: "white",
-    },
-
-    logoutButton: {
-      paddingHorizontal: 10,
-      paddingVertical: 10,
-      //backgroundColor: "rgba(233, 12, 12, 0.2)", // Optional: to visualize touch area
-      borderRadius: 8,
-      //alignItems: "center",
+  backgroundImage: {
+    flex: 1,
+    resizeMode: "cover",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 40, // push down from very top
+    marginHorizontal: 20,
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    top: 20,
+  },
+  logoutButton: {
+    marginLeft: "auto", // push it to the right
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    top: 20,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  logoutText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "white",
+  },
+  imageContainer: {
+    height: height / 3,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  slide: {
+    width,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  image: {
+    width: width * 0.9,
+    height: height / 4,
+    borderRadius: 10,
+    marginVertical: 10,
+  },
+  gridContainer: {
+    flex: 2,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    padding: 10,
+  },
+  gridItem: {
+    width: width * 0.4,
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 5,
+    borderRadius: 10,
+    backgroundColor: "rgba(39, 34, 34, 0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+  },
+  cardStyle: {
+    backgroundColor: "transparent",
+    elevation: 0,
+  },
+  gridText: {
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "white",
+  },
+  input: {
+    marginBottom: 10,
   },
 });
 
