@@ -103,7 +103,14 @@ const HomeScreen = () => {
     if (title === "Bag Selector") {
       navigation.navigate("Bag", { player_id });
     }
+
+    if (title === "Course") {
+      navigation.navigate("Course", { player_id });
+    }
+
+
   };
+
 
   return (
     <Provider>
@@ -120,7 +127,10 @@ const HomeScreen = () => {
             <Text style={styles.headerText}>DGCS</Text>
             <Pressable
               onPress={() => navigation.navigate("Login")}
-              style={styles.logoutButton}
+              style={({ pressed }) => [
+                styles.logoutButton,
+                pressed && { backgroundColor: "rgba(255,255,255,0.3)" }, // Lighter when pressed
+              ]}
             >
               <Text style={styles.logoutText}>Logout</Text>
             </Pressable>
@@ -149,18 +159,21 @@ const HomeScreen = () => {
 
           {/* Grid Menu */}
           <View style={styles.gridContainer}>
-            {["Bag Selector", "Box 2", "Box 3", "Box 4"].map((title, index) => (
+            {["Bag Selector", "Course", "Box 3", "Box 4"].map((title, index) => (
               <Pressable
-                key={index}
-                onPress={() => handlePress(title)}
-                style={styles.gridItem}
-              >
-                <Card style={styles.cardStyle}>
-                  <Card.Content>
-                    <Text style={styles.gridText}>{title}</Text>
-                  </Card.Content>
-                </Card>
-              </Pressable>
+              key={index}
+              onPress={() => handlePress(title)}
+              style={({ pressed }) => [
+                styles.gridItem,
+                pressed && { backgroundColor: "rgba(255, 255, 255, 0.3)" }, 
+              ]}
+            >
+              <Card style={styles.cardStyle}>
+                <Card.Content>
+                  <Text style={styles.gridText}>{title}</Text>
+                </Card.Content>
+              </Card>
+            </Pressable>
             ))}
           </View>
         </View>

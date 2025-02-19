@@ -5,7 +5,7 @@ import LoginScreen from "./LoginScreen";
 import HomeScreen from "./HomeScreen";
 import BagScreen from "./BagScreen"; 
 import { LogBox } from 'react-native';  
-
+import CourseScreen from "./CourseScreen"
 
 const Stack = createStackNavigator();
 
@@ -22,6 +22,7 @@ export default function App() {
                 <Stack.Screen name="Login" component={LoginScreen} />
                 <Stack.Screen name="Home" component={HomeScreen} />
                 <Stack.Screen name="Bag" component={BagScreen} />
+                <Stack.Screen name="Course" component={CourseScreen}  />
             </Stack.Navigator>
         </NavigationContainer>
     );
