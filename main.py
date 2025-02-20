@@ -1,8 +1,12 @@
 import sqlite3
 from fastapi import FastAPI, HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from bag_routes import router as bag_router
 from get_bag import router as get_bag_router
+from club_prediction import ClubPredictionInput, predict_club
+from expected_area_prediction import LocationInput, predict_location
+
 
 # Do this command before doing any SQL stuff
 #   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -146,5 +150,35 @@ def get_golf_bag(player_id: str):
 app.include_router(get_bag_router)
 
 app.include_router(bag_router)
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------
+#    Club Selection Model
+# ------------------------------------------------------
+class LocationInput(BaseModel):
+    start_x: float
+    start_y: float
+    shot_id: int
+
+@app.post("/predictclub")
+def predict(data: ClubPredictionInput):
+    prediction = predict_club(data)
+    return {"prediction": prediction}
+
+@app.post("/predictlocation/{player_id}")
+def predict(player_id: int, data: LocationInput):
+    result = predict_location(player_id, data.start_x, data.start_y, data.shot_id)
+
+    return jsonable_encoder(result)
+
+
+
 
 
