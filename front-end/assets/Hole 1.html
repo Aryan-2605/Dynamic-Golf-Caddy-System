@@ -388,6 +388,23 @@
 </script>
 
 <script>
+
+    function isPointInsidePolygon(point, polygon) {
+    var inside = false;
+    var x = point[0], y = point[1];
+    var polyPoints = polygon.getLatLngs()[0]; // Get polygon points
+
+    for (var i = 0, j = polyPoints.length - 1; i < polyPoints.length; j = i++) {
+        var xi = polyPoints[i].lat, yi = polyPoints[i].lng;
+        var xj = polyPoints[j].lat, yj = polyPoints[j].lng;
+
+        var intersect = ((yi > y) !== (yj > y)) &&
+                        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+}
     // Initialize user location marker
     var userMarker = L.marker([51.60409972788149, -0.21955174305143066], {
         icon: L.icon({
@@ -404,19 +421,44 @@
         // Update marker position
         userMarker.setLatLng([lat, lng]);
 
+        //alert(lat, lng)
+       /* if (!isPointInsidePolygon([lat, lng], polygon_3405987639aa90c4b8f32fb43bdc179c)) {
+        alert("🚨 You are outside the golf course! Please move back inside.");
+    }*/
+
         
        // map_d4d18c2a247f1068e155ba0c874ee941.setView([lat, lng], map_d4d18c2a247f1068e155ba0c874ee941.getZoom());
     }
 
     // Function to draw a line between two points
-    function addLine(lat1, lng1, lat2, lng2) {
-        console.log(`Drawing line from (${lat1}, ${lng1}) to (${lat2}, ${lng2})`);
-        
-        var newLine = L.polyline(
-            [[lat1, lng1], [lat2, lng2]],
-            { color: "red", weight: 3 }
-        ).addTo(polylineLayer);
+// Initialize polyline layer
+var polylineLayer = L.layerGroup().addTo(map_d4d18c2a247f1068e155ba0c874ee941);
+
+// Function to draw a line between two points
+function addLine(lat1, lng1, lat2, lng2) {
+
+
+    if (!isPointInsidePolygon([lat1, lng1], polygon_3405987639aa90c4b8f32fb43bdc179c) || 
+        !isPointInsidePolygon([lat2, lng2], polygon_3405987639aa90c4b8f32fb43bdc179c)) {
+        alert("🚫 You cannot draw a line outside the golf course!");
+        return;
     }
+
+    console.log(`addLine() called: From (${lat1}, ${lng1}) to (${lat2}, ${lng2})`);
+
+    // Ensure polylineLayer exists before adding a line
+    if (!polylineLayer) {
+        polylineLayer = L.layerGroup().addTo(map_d4d18c2a247f1068e155ba0c874ee941);
+    }
+
+    var newLine = L.polyline(
+        [[lat1, lng1], [lat2, lng2]],
+        { color: "red", weight: 3 }
+    ).addTo(polylineLayer);
+
+    console.log("Line successfully added to the map.");
+}
+
 </script>
 
 

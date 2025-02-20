@@ -8,6 +8,14 @@ const CourseScreen = () => {
   const [location, setLocation] = useState(null);
   const [prevLocation, setPrevLocation] = useState(null);
 
+  const { player_id } = route.params || {};
+
+  if (!player_id) {
+    console.warn("No player_id provided to Course.");
+  }
+
+  
+
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -36,22 +44,21 @@ const CourseScreen = () => {
 
   const logAndDrawLine = () => {
     if (location) {
-      console.log("Logged Location:", location);
+      console.log("Trying to log location:", location);
   
-      if (prevLocation) {
-        console.log(`Drawing line from (${prevLocation.latitude}, ${prevLocation.longitude}) to (${location.latitude}, ${location.longitude})`);
-  
-        if (webViewRef.current) {
-          const jsCode = `
-            console.log("Calling addLine in WebView with coordinates: ${prevLocation.latitude}, ${prevLocation.longitude}, ${location.latitude}, ${location.longitude}");
-            addLine(${prevLocation.latitude}, ${prevLocation.longitude}, ${location.latitude}, ${location.longitude});
-          `;
-          webViewRef.current.injectJavaScript(jsCode);
-        }
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          if (!isPointInsidePolygon([${location.latitude}, ${location.longitude}], polygon_3405987639aa90c4b8f32fb43bdc179c)) {
+            alert("🚫 You must be on the golf course to log your first point!");
+          } else {
+            console.log("✅ Location logged:", ${location.latitude}, ${location.longitude});
+            window.ReactNativeWebView.postMessage("Location valid");
+          }
+        `);
       }
-      setPrevLocation(location);
     }
   };
+  
   
 
   return (
