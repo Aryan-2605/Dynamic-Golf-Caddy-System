@@ -30,11 +30,11 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const player_id = route.params?.player_id;
+  console.log(player_id)
 
   const [isDialogVisible, setDialogVisible] = useState(false);
   const [profile, setProfile] = useState({ age: "", gender: "", hcp: "" });
 
-  // 1️⃣ Fetch Player Data Safely
   useEffect(() => {
     if (!player_id) return;
 
@@ -45,14 +45,11 @@ const HomeScreen = () => {
           `${CONFIG.API_BASE_URL}/get_golf_bag/${player_id}`
         );
 
-        // If not OK (like 404), we show the profile dialog
         if (!res.ok) {
-          // Example: 404 "Not Found" => show dialog
           throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
         }
 
         const data = await res.json();
-        // If data is missing profile fields, open dialog
         if (!data || !data.Age || !data.Gender || !data.HCP) {
           setDialogVisible(true);
         } else {
@@ -65,14 +62,11 @@ const HomeScreen = () => {
       } catch (err) {
         console.error("Fetch error:", err);
 
-        // If the endpoint returned a 404 or 500, it means no data for the user
-        // or the server is having issues => show the dialog anyway
         setDialogVisible(true);
       }
     })();
   }, [player_id]);
 
-  // 2️⃣ Save Profile to Backend
   const handleSaveProfile = async () => {
     try {
       const response = await fetch(`${CONFIG.API_BASE_URL}/save_profile`, {
@@ -129,14 +123,13 @@ const HomeScreen = () => {
               onPress={() => navigation.navigate("Login")}
               style={({ pressed }) => [
                 styles.logoutButton,
-                pressed && { backgroundColor: "rgba(255,255,255,0.3)" }, // Lighter when pressed
+                pressed && { backgroundColor: "rgba(255,255,255,0.3)" }, 
               ]}
             >
               <Text style={styles.logoutText}>Logout</Text>
             </Pressable>
           </View>
 
-          {/* Image Slideshow */}
           <View style={styles.imageContainer}>
             <FlatList
               data={[
