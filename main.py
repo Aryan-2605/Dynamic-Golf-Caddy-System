@@ -167,10 +167,18 @@ class LocationInput(BaseModel):
     start_y: float
     shot_id: int
 
-@app.post("/predictclub")
-def predict(data: ClubPredictionInput):
-    prediction = predict_club(data)
-    return {"prediction": prediction}
+class ClubInput(BaseModel):
+    start_x: float
+    start_y: float
+    end_x: float
+    end_y: float
+    shot_id: int
+
+
+@app.post("/predictclub/{player_id}")
+def predict(player_id: int, data: ClubInput):
+    result = predict_club(player_id, data.start_x, data.start_y, data.end_x, data.end_y, data.shot_id)
+    return jsonable_encoder(result)
 
 @app.post("/predictlocation/{player_id}")
 def predict(player_id: int, data: LocationInput):

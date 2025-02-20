@@ -1,9 +1,10 @@
-import sqlite3
 import pandas as pd
-from shapely.geometry import Point, Polygon
-import ast
+from shapely.geometry import Point
 import joblib
 from pydantic import BaseModel
+
+from area import Area
+from get_player_data import get_player_data
 
 MODEL_PATH = "Expected_Area_Models.pkl"
 
@@ -12,108 +13,11 @@ models = joblib.load(MODEL_PATH)
 lat_model = models["lat_model"]
 lon_model = models["lon_model"]
 
-conn = sqlite3.connect("DGCS.db", check_same_thread=False)
-
-
-def get_player_data(player_id):
-    c = conn.cursor()
-    c.execute("""
-        SELECT Age, Gender, HCP, Driver, Driver_Dispersion, `3-Wood`, `3-Wood_Dispersion`, 
-               `5-Wood`, `5-Wood_Dispersion`, `3-Hybrid`, `3-Hybrid_Dispersion`, `4-Hybrid`, 
-               `4-Hybrid_Dispersion`, `5-Hybrid`, `5-Hybrid_Dispersion`, `4-Iron`, 
-               `4-Iron_Dispersion`, `5-Iron`, `5-Iron_Dispersion`, `6-Iron`, `6-Iron_Dispersion`,
-               `7-Iron`, `7-Iron_Dispersion`, `8-Iron`, `8-Iron_Dispersion`, `9-Iron`, 
-               `9-Iron_Dispersion`, `PW`, `PW_Dispersion`, `GW`, `GW_Dispersion`, 
-               `SW`, `SW_Dispersion`, `LW`, `LW_Dispersion` 
-        FROM player_data WHERE player_id=?""", (player_id,))
-
-    result = c.fetchone()
-
-    if result:
-        columns = [
-            'Age', 'Gender', 'HCP', 'Driver',
-            'Driver_Dispersion', '3-Wood', '3-Wood_Dispersion', '5-Wood',
-            '5-Wood_Dispersion', '3-Hybrid', '3-Hybrid_Dispersion', '4-Hybrid',
-            '4-Hybrid_Dispersion', '5-Hybrid', '5-Hybrid_Dispersion', '4-Iron',
-            '4-Iron_Dispersion', '5-Iron', '5-Iron_Dispersion', '6-Iron',
-            '6-Iron_Dispersion', '7-Iron', '7-Iron_Dispersion', '8-Iron',
-            '8-Iron_Dispersion', '9-Iron', '9-Iron_Dispersion', 'PW',
-            'PW_Dispersion', 'GW', 'GW_Dispersion', 'SW', 'SW_Dispersion', 'LW',
-            'LW_Dispersion'
-        ]
-        return dict(zip(columns, result))
-
-    return None
-
 
 class LocationInput(BaseModel):
     start_x: float
     start_y: float
     shot_id: float
-
-
-class Area():
-    def __init__(self, hole_data):
-        self.hole_data = hole_data
-        self.polygons = self.create_polygon()
-
-    def parse_hole_data(self):
-        predefined_areas = ['Fairway', 'TreeLine', 'Green', 'Bunker', 'Zone', 'TeeBox']
-        area_coordinates = {}
-
-        for area in predefined_areas:
-            arrays = self.hole_data.loc[self.hole_data['Area'] == area, 'Coordinates'].values
-
-            converted = [ast.literal_eval(item) for item in arrays]
-
-            area_coordinates[area] = converted
-
-        return area_coordinates
-
-    def create_polygon(self):
-        area_coordinates = self.parse_hole_data()
-        hole_polygons = {}
-
-        for zone, coordinates in area_coordinates.items():
-            #print(f"Zone: {zone}")
-            for i, coords in enumerate(coordinates):
-                polygon = Polygon(coords)
-                hole_polygons.setdefault(zone, []).append(polygon)
-                #print(f"  Polygon {i + 1}: {polygon}")
-
-        return hole_polygons
-
-    def return_location(self, location):
-        predefined_areas = ['Fairway', 'TreeLine', 'Green', 'Bunker', 'Zone', 'TeeBox']
-        is_inside = {}
-
-        for zone, polygons in self.polygons.items():
-            if zone in predefined_areas:
-                is_inside[zone] = False
-
-                for i, polygon in enumerate(polygons):
-                    if isinstance(polygon, str):
-                        self.polygons[zone][i] = Polygon(ast.literal_eval(polygon))
-                        polygon = self.polygons[zone][i]
-
-                    if polygon.contains(location):
-                        is_inside[zone] = True
-                        break
-
-        if is_inside.get("TeeBox", True):
-            return 4
-        elif is_inside.get("Bunker", True):
-            return 0
-        elif is_inside.get("Green", True):
-            return 2
-        elif is_inside.get("Fairway", True):
-            return 1
-        elif is_inside.get("TreeLine", True):
-            return 5
-        elif is_inside.get("Zone", True):
-            return 3
-        else:
-            return 3
 
 
 def predict_location(player_id, start_x, start_y, shot_id):
@@ -127,10 +31,9 @@ def predict_location(player_id, start_x, start_y, shot_id):
             "error": "Player not found!"
         }
 
-
     for key, value in player_data.items():
         if value is None or value == "":  # Empty string check
-            player_data[key] = 0.0
+            player_data[key] = 'NaN'
 
 
     start_zone = area.return_location(Point(start_x, start_y))
@@ -146,7 +49,6 @@ def predict_location(player_id, start_x, start_y, shot_id):
     else:
         player_data["Gender"] = 1
 
-    print(f'FUCKING TESTING FUCKIGN TESTING {type(player_data["Driver"])} ')
 
     '''X Train Order
     
