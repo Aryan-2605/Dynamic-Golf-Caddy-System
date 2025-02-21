@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, StyleSheet, Button, Text, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Button, Text, TouchableOpacity, SafeAreaView } from "react-native";
 import { WebView } from "react-native-webview";
 import * as Location from "expo-location";
-import { useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import CONFIG from "./config";
 
 const CourseScreen = () => {
   const route = useRoute();
+  const navigation = useNavigation();
   const webViewRef = useRef(null);
   const [location, setLocation] = useState(null);
   const [prevLocation, setPrevLocation] = useState(null);
@@ -140,6 +141,19 @@ const CourseScreen = () => {
 
   return (
     <View style={styles.container}>
+
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.topOverlay}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>← Back</Text>
+          </TouchableOpacity>
+          <View style={styles.courseInfo}>
+            <Text style={styles.courseText}>Hendon Golf Club</Text>
+            <Text style={styles.holeText}>Hole 1 | Par 4</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+
       <WebView
         ref={webViewRef}
         originWhitelist={["*"]}
@@ -165,6 +179,9 @@ const CourseScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: "rgba(0, 0, 0, 1)",
+  },
   container: { 
     flex: 1,
   },
@@ -221,6 +238,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#fff",
+  },
+
+  topOverlay: {
+    width: "100%",
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 10,
+    borderBottomLeftRadius: 15,
+    borderBottomRightRadius: 15,
+  },
+
+  backButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+  },
+
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000",
+  },
+
+  courseInfo: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 5, // Extra padding to prevent overlap with Dynamic Island
+  },
+
+  courseText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+
+  holeText: {
+    fontSize: 16,
+    color: "#ffd700",
   },
 });
 
