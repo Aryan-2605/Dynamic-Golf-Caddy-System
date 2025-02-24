@@ -54,9 +54,10 @@ def add_manual_users():
     with conn:
         c = conn.cursor()
         users = [
-            ("2001", "1234"),
-            ("2002", "1234"),
-            ("2003", "1234")
+            ("4001", "1234"),
+            ("4002", "1234"),
+            ("4003", "1234"),
+            ("3897", "1234"),
         ]
         c.executemany("INSERT OR IGNORE INTO users VALUES (?, ?)", users)
 

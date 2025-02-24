@@ -14,7 +14,6 @@ model = joblib.load(MODEL_PATH)
 
 
 
-# ✅ Define input features
 class ClubPredictionInput(BaseModel):
     start_x: float
     start_y: float
@@ -67,7 +66,6 @@ def predict_club(player_id, start_x, start_y, end_x, end_y, shot_id):
         )
     )
 
-
     input_data = [[
         float(player_id),
         float(shot_id),
@@ -117,6 +115,7 @@ def predict_club(player_id, start_x, start_y, end_x, end_y, shot_id):
     ]]
     print(distance_covered)
     prediction = model.predict(input_data)
+    print(prediction)
     club_name = CLUB_MAPPING.get(int(prediction[0]), "Unknown Club")
     return {'Club': club_name}
 ''' 
