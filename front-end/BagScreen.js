@@ -4,7 +4,7 @@ import {
   StyleSheet,
   FlatList,
   Alert,
-  SafeAreaView, // ios dynamic island thingy
+  SafeAreaView,
 } from "react-native";
 import {
   Card,
@@ -18,9 +18,8 @@ import {
   IconButton,
 } from "react-native-paper";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import CONFIG from "./config"; 
+import CONFIG from "./config";
 
-// The clubs in the specified order:
 const CLUB_ORDER = [
   "Driver",
   "3-Wood",
@@ -30,79 +29,56 @@ const CLUB_ORDER = [
   "5-Hybrid",
   "4-Iron",
   "5-Iron",
-  "5-Wood",
   "6-Iron",
   "7-Iron",
   "8-Iron",
   "9-Iron",
-  "GW",
-  "LW",
   "PW",
+  "GW",
   "SW",
+  "LW",
 ];
 
 const BagScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-
-  // player_id passed from past screen
   const { player_id } = route.params || {};
 
   if (!player_id) {
     console.warn("No player_id provided to BagScreen.");
   }
 
-  // ============== State Management ==============
-  const [clubs, setClubs] = useState([]); 
+  const [clubs, setClubs] = useState([]);
   const [selectedClub, setSelectedClub] = useState("");
   const [carryDistance, setCarryDistance] = useState("");
   const [dispersion, setDispersion] = useState("");
-  const [editIndex, setEditIndex] = useState(null); 
+  const [editClubName, setEditClubName] = useState(null);
 
   const [visible, setVisible] = useState(false);
-
   const [menuVisible, setMenuVisible] = useState(false);
 
-  // ============== Lifecycle - Fetch existing data ==============
   useEffect(() => {
     if (!player_id) return;
 
     fetch(`${CONFIG.API_BASE_URL}/bag/${player_id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP Error: ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
         if (data.clubs && Array.isArray(data.clubs)) {
-          const merged = CLUB_ORDER.map((clubName) => {
-            const found = data.clubs.find((c) => c.name === clubName);
-            if (found) {
-              return found;
-            } else {
-              return { name: clubName, yardage: "", dispersion: "" };
-            }
-          });
-          setClubs(merged);
+          setClubs(data.clubs);
         }
       })
-      .catch((err) => {
-        console.error("Fetch bag error:", err);
-      });
+      .catch((err) => console.error("Fetch bag error:", err));
   }, [player_id]);
 
-  // ============== Show/Hide Dialog Helpers ==============
   const showDialog = () => setVisible(true);
   const hideDialog = () => {
     setVisible(false);
     setSelectedClub("");
     setCarryDistance("");
     setDispersion("");
-    setEditIndex(null);
+    setEditClubName(null);
   };
 
-  // ============== Handle Add/Edit ==============
   const handleSelectClub = (clubName) => {
     setSelectedClub(clubName);
     setMenuVisible(false);
@@ -115,70 +91,43 @@ const BagScreen = () => {
       return;
     }
 
-    if (
-        editIndex === null &&
-        clubs.some(
-          (c) =>
-            c.name === selectedClub &&
-            c.yardage.trim() !== "" 
-        )
-      ) {
-        Alert.alert("Error", "You already have this club in your bag.");
-        return;
+    setClubs((prev) => {
+      if (editClubName !== null) {
+        return prev.map((c) =>
+          c.name === editClubName
+            ? { name: selectedClub, yardage: carryDistance, dispersion }
+            : c
+        );
+      } else {
+        return [...prev, { name: selectedClub, yardage: carryDistance, dispersion }];
       }
+    });
 
-    const newClubObject = {
-      name: selectedClub,
-      yardage: carryDistance,
-      dispersion,
-    };
-
-    if (editIndex !== null) {
-      // Editing existing
-      const updatedClubs = [...clubs];
-      updatedClubs[editIndex] = newClubObject;
-      setClubs(updatedClubs);
-    } else {
-      // Adding new
-      setClubs((prev) => [...prev, newClubObject]);
-    }
     hideDialog();
   };
 
-  const handleEditClub = (index) => {
-    const clubToEdit = clubs[index];
-    setSelectedClub(clubToEdit.name);
-    setCarryDistance(clubToEdit.yardage);
-    setDispersion(clubToEdit.dispersion);
-    setEditIndex(index);
+  const handleEditClub = (clubName, yardage, dispersion) => {
+    setSelectedClub(clubName);
+    setCarryDistance(yardage);
+    setDispersion(dispersion);
+    setEditClubName(clubName);
     setVisible(true);
   };
 
-  const handleDeleteClub = (index) => {
-    const updatedClubs = [...clubs];
-    updatedClubs.splice(index, 1);
-    setClubs(updatedClubs);
+  const handleDeleteClub = (clubName) => {
+    setClubs((prev) => prev.filter((c, i) => c.name !== clubName || i !== prev.findIndex((c) => c.name === clubName)));
   };
 
-  // ============== Save Bag to Backend ==============
   const handleSaveBag = () => {
     fetch(`${CONFIG.API_BASE_URL}/bag/save_bag`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        player_id,
-        clubs, 
-      }),
+      body: JSON.stringify({ player_id, clubs }),
     })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP Error: ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then(() => {
         Alert.alert("Success", "Bag saved successfully!");
-        navigation.goBack(); 
+        navigation.goBack();
       })
       .catch((err) => {
         console.error("Save bag error:", err);
@@ -186,33 +135,27 @@ const BagScreen = () => {
       });
   };
 
-  // ============== Rendering ==============
+  const clubCounts = clubs.reduce((acc, club) => {
+    acc[club.name] = (acc[club.name] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <Provider>
-    
       <SafeAreaView style={styles.safeContainer}>
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Bag Setup</Text>
-          <Button
-            mode="contained"
-            onPress={handleSaveBag}
-            style={styles.saveButton}
-          >
+          <Button mode="contained" onPress={handleSaveBag} style={styles.saveButton}>
             Save Bag
           </Button>
         </View>
-
 
         <View style={styles.menuContainer}>
           <Menu
             visible={menuVisible}
             onDismiss={() => setMenuVisible(false)}
             anchor={
-              <Button
-                mode="contained"
-                onPress={() => setMenuVisible(true)}
-                style={styles.menuButton}
-              >
+              <Button mode="contained" onPress={() => setMenuVisible(true)} style={styles.menuButton}>
                 Select Club
               </Button>
             }
@@ -222,37 +165,34 @@ const BagScreen = () => {
                 key={idx}
                 title={club}
                 onPress={() => handleSelectClub(club)}
+                disabled={clubCounts[club] >= 2} 
+                style={clubCounts[club] >= 2 ? styles.disabledMenuItem : {}}
               />
             ))}
           </Menu>
         </View>
 
-
         <FlatList
-        data={clubs.filter(
-            (club) => club.yardage.trim() !== "" // && club.dispersion.trim() !== ""
-        )}
-        keyExtractor={(item, index) => `${item.name}-${index}`}
-        renderItem={({ item, index }) => (
+          data={clubs}
+          keyExtractor={(item, index) => `${item.name}-${index}`}
+          renderItem={({ item }) => (
             <Card style={styles.cardItem}>
-            <Card.Title title={item.name} />
-            <Card.Content>
+              <Card.Title title={item.name} />
+              <Card.Content>
                 <Text>Carry Distance: {item.yardage} yds</Text>
                 <Text>Dispersion: {item.dispersion} yds</Text>
-            </Card.Content>
-            <Card.Actions>
-                <IconButton icon="pencil" onPress={() => handleEditClub(index)} />
-                <IconButton icon="delete" color="red" onPress={() => handleDeleteClub(index)} />
-            </Card.Actions>
+              </Card.Content>
+              <Card.Actions>
+                <IconButton icon="pencil" onPress={() => handleEditClub(item.name, item.yardage, item.dispersion)} />
+                <IconButton icon="delete" color="red" onPress={() => handleDeleteClub(item.name)} />
+              </Card.Actions>
             </Card>
-        )}
+          )}
         />
 
         <Portal>
           <Dialog visible={visible} onDismiss={hideDialog}>
-            <Dialog.Title>
-              {editIndex !== null ? "Edit Club" : "Add Club"}
-            </Dialog.Title>
+            <Dialog.Title>{editClubName ? "Edit Club" : "Add Club"}</Dialog.Title>
             <Dialog.Content>
               <Text style={styles.clubLabel}>Club: {selectedClub}</Text>
               <TextInput
@@ -274,9 +214,7 @@ const BagScreen = () => {
             </Dialog.Content>
             <Dialog.Actions>
               <Button onPress={hideDialog}>Cancel</Button>
-              <Button onPress={handleSaveClub}>
-                {editIndex !== null ? "Update" : "Add"}
-              </Button>
+              <Button onPress={handleSaveClub}>{editClubName ? "Update" : "Add"}</Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
@@ -288,41 +226,14 @@ const BagScreen = () => {
 export default BagScreen;
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: "#f4f4f4",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 10, 
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  saveButton: {
-    backgroundColor: "#4CAF50",
-  },
-  menuContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  menuButton: {
-    backgroundColor: "blue",
-  },
-  cardItem: {
-    marginHorizontal: 16,
-    marginVertical: 5,
-  },
-  clubLabel: {
-    fontSize: 16,
-    marginBottom: 10,
-  },
-  input: {
-    marginVertical: 6,
-  },
+  safeContainer: { flex: 1, backgroundColor: "#f4f4f4" },
+  headerContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10 },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: "bold" },
+  saveButton: { backgroundColor: "#4CAF50" },
+  menuContainer: { paddingHorizontal: 16, marginBottom: 10 },
+  menuButton: { backgroundColor: "blue" },
+  cardItem: { marginHorizontal: 16, marginVertical: 5 },
+  clubLabel: { fontSize: 16, marginBottom: 10 },
+  input: { marginVertical: 6 },
+  disabledMenuItem: { opacity: 0.5 },
 });

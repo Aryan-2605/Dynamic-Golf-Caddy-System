@@ -32,7 +32,7 @@ const CourseScreen = () => {
       }
 
       Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 0 },
+        { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 1 },
         (newLocation) => {
           const { latitude, longitude } = newLocation.coords;
           setLocation({ latitude, longitude });
