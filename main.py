@@ -58,6 +58,8 @@ def add_manual_users():
             ("4002", "1234"),
             ("4003", "1234"),
             ("3897", "1234"),
+            ("76", "1234"),
+            ("335", "1234"),
         ]
         c.executemany("INSERT OR IGNORE INTO users VALUES (?, ?)", users)
 
